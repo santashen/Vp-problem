@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[245]:
-
-
 # V-P problem entransy optimization
 # Author: Shen Yang
 # Institution: School of Aerospace Engineering, Tsinghua University
@@ -16,11 +10,12 @@ from matplotlib import cm
 from tqdm import tqdm
 import cv2
 
+import re
 import os
 import pickle
 
-get_ipython().run_line_magic('matplotlib', 'inline')
-get_ipython().run_line_magic('config', "InlineBackend.figure_format = 'svg'")
+%matplotlib inline
+%config InlineBackend.figure_format = 'svg'
 
 plt.style.use("science")
 
@@ -33,7 +28,7 @@ class Entrosy:
         low_conduct=0.29,
         ke=10,
         Tw=273.15,
-        fill_rate=0.1,
+        fill_rate=0.15,
         omega=1.9,
         initial_temp=300,
         whether_save_lambda=False,
@@ -233,7 +228,10 @@ class Entrosy:
         x = np.linspace(-1, 1, self.n)
         y = np.linspace(-1, 1, self.n)
         X, Y = np.meshgrid(x, y)
-        plt.contour(X, Y, self.T[::-1, :], levels=20, colors="grey", linewidths=0.5)
+        T = np.concatenate((self.T, self.T[:, ::-1]), axis=1)
+        plt.contour(
+            X, Y, T[::-1, :], levels=20, colors="grey", linewidths=0.5,
+        )
         ax = plt.gca()
         ax.set_aspect("equal", adjustable="box")
         plt.xticks([])
@@ -259,43 +257,55 @@ class Entrosy:
 
     def make_lambda_gif(self):
         pngfiles = [
-            img for img in os.listdir(self.save_directory) if img.startswith("lambda")
+            os.path.join(self.save_directory, "{}".format(img))
+            for img in os.listdir(self.save_directory)
+            if img.startswith("lambda") and img.endswith("png")
         ]
         vediowriter = cv2.VideoWriter(
-            "lambda.avi",
-            fourcc=cv2.VideoWriter_fourcc("M", "J", "P", "G"),
+            os.path.join(self.save_directory, "lambda.mp4"),
+            fourcc=cv2.VideoWriter_fourcc('H','2','6','4'),
             fps=14,
             frameSize=cv2.imread(pngfiles[0]).shape[:2],
         )
+        pngfiles.sort(key=lambda file: int(re.search("\d+", file).group()))
         for img in pngfiles:
-            vediowriter.read(cv2.imread(img))
+            vediowriter.write(cv2.imread(img))
         vediowriter.release()
 
     def merge(self):
         lambdas = [
-            img for img in os.listdir(self.save_directory) if img.startswith("lambda")
+            os.path.join(self.save_directory, "{}".format(img))
+            for img in os.listdir(self.save_directory)
+            if img.startswith("lambda") and img.endswith("png")
         ]
+        lambdas.sort(key=lambda file: int(re.search("\d+", file).group()))
         temps = [
-            img for img in os.listdir(self.save_directory) if img.startswith("temp")
+            os.path.join(self.save_directory, "{}".format(img))
+            for img in os.listdir(self.save_directory)
+            if img.startswith("temp") and img.endswith("png")
         ]
+        temps.sort(key=lambda file: int(re.search("\d+", file).group()))
         for i, (lam, tem) in enumerate(zip(lambdas, temps)):
             a = cv2.imread(lam)
             b = cv2.imread(tem)
             x = cv2.addWeighted(a, 0.3, b, 0.7, 30)
-            cv2.imwrite(os.path.join(self.save_directory, "merge{}.png".format(i)))
+            cv2.imwrite(os.path.join(self.save_directory, "merge{}.png".format(i)), x)
 
     def make_merge_gif(self):
         pngfiles = [
-            img for img in os.listdir(self.save_directory) if img.startswith("merge")
+            os.path.join(self.save_directory, "{}".format(img))
+            for img in os.listdir(self.save_directory)
+            if img.startswith("merge") and img.endswith("png")
         ]
         vediowriter = cv2.VideoWriter(
-            "temp.avi",
-            fourcc=cv2.VideoWriter_fourcc("M", "J", "P", "G"),
+            os.path.join(self.save_directory, "temp.mp4"),
+            fourcc=cv2.VideoWriter_fourcc('H','2','6','4'),
             fps=14,
             frameSize=cv2.imread(pngfiles[0]).shape[:2],
         )
+        pngfiles.sort(key=lambda file: int(re.search("\d+", file).group()))
         for img in pngfiles:
-            vediowriter.read(cv2.imread(img))
+            vediowriter.write(cv2.imread(img))
         vediowriter.release()
 
     def save_obj(self):
@@ -405,4 +415,3 @@ class Entrosy:
             self.make_merge_gif()
         self.l_real = l_real
         self.T = self.sor(self.l_real)
-
